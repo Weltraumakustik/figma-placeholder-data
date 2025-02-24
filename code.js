@@ -4,7 +4,7 @@ let customerData = [];
 
 async function loadCustomerData() {
   try {
-    const response = await fetch("https://github.com/Weltraumakustik/figma-placeholder-data/data/json/customers.json");
+    const response = await fetch("https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/json/customers.json");
     customerData = await response.json();
     console.log("Customer Data:", customerData);
     figma.ui.postMessage({ type: "showData", data: customerData });
