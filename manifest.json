@@ -1,0 +1,14 @@
+{
+    "name": "Replace placeholders",
+    "id": "com.shopware.placeholderdata",
+    "api": "1.0.0",
+    "editorType": ["figma", "figjam"],
+    "main": "code.js",
+    "ui": "ui.html",
+    "menu": [
+      {
+        "name": "Start Plugin",
+        "command": "start"
+      }
+    ]
+  }

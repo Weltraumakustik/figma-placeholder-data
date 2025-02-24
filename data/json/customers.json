@@ -1,0 +1,14 @@
+[
+    {
+      "name": "logoipsum",
+      "logo": "https://github.com/Weltraumakustik/figma-placeholder-data/data/images/logos/brand_a.svg"
+    },
+    {
+      "name": "lorem",
+      "logo": "https://github.com/Weltraumakustik/figma-placeholder-data/data/images/logos/brand_b.svg"
+    },
+    {
+      "name": "ipsum",
+      "logo": "https://github.com/Weltraumakustik/figma-placeholder-data/data/images/logos/brand_c.svg"
+    }
+  ]
