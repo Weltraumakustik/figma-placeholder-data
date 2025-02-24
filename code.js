@@ -4,44 +4,41 @@ function notify(message) {
 
 function replaceText(node, text) {
   if (node.type === 'TEXT') {
-    figma.loadFontAsync(node.fontName).then(() => {
-      node.characters = text;
-    }).catch(err => {
-      notify(`Fehler beim Laden der Schriftart für ${node.name}: ${err}`);
-    });
+    figma.loadFontAsync(node.fontName)
+      .then(() => { node.characters = text; })
+      .catch(err => { notify(`Fehler beim Laden der Schriftart für ${node.name}: ${err}`); });
   }
 }
 
-function replaceImage(node, base64Png) {
-  console.log('replaceImage für:', node.name, 'base64Png:', base64Png ? base64Png.substring(0, 50) + '...' : 'undefined');
+async function dataURLtoUint8Array(dataURL) {
+  const res = await fetch(dataURL);
+  const buffer = await res.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+async function replaceImage(node, base64Png) {
+  if (node.type === 'INSTANCE') {
+    node = node.detachInstance();
+  }
   if (node.type !== 'RECTANGLE' && node.type !== 'FRAME' && node.type !== 'GROUP') {
-    notify(`Ungültiger Layer-Typ für Bild: ${node.type} (${node.name})`);
-    return;
+    throw new Error(`Ungültiger Layer-Typ für Bild: ${node.type} (${node.name})`);
   }
   if (!base64Png || typeof base64Png !== 'string' || !base64Png.startsWith('data:image/png;base64,')) {
-    notify(`Ungültiges Bildformat für ${node.name}: ${base64Png}`);
-    return;
+    throw new Error(`Ungültiges Bildformat für ${node.name}`);
   }
   if (typeof figma.createImage !== 'function') {
-    notify('figma.createImage ist keine Funktion! Plugin-Umgebung prüfen.');
-    console.error('figma:', figma, 'createImage:', figma.createImage);
-    return;
+    throw new Error('figma.createImage ist keine Funktion! Plugin-Umgebung prüfen.');
   }
-  try {
-    const imageBytes = Uint8Array.from(atob(base64Png.split(',')[1]), c => c.charCodeAt(0));
-    const image = figma.createImage(imageBytes);
-    if (!image || !image.hash) {
-      throw new Error('Kein gültiges Bildobjekt');
-    }
-    node.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash: image.hash }];
-    console.log(`Bild erfolgreich eingefügt in ${node.name}`);
-  } catch (err) {
-    notify(`Fehler beim Bild für ${node.name}: ${err.message}`);
-    console.error('Fehler in replaceImage:', err);
+  const imageBytes = await dataURLtoUint8Array(base64Png);
+  const image = figma.createImage(imageBytes);
+  if (!image || !image.hash) {
+    throw new Error('Kein gültiges Bildobjekt');
   }
+  node.fills = [{ type: 'IMAGE', scaleMode: 'FILL', imageHash: image.hash }];
+  console.log(`Bild erfolgreich eingefügt in ${node.name}`);
 }
 
-function processNode(node, jsonData, index = null) {
+async function processNode(node, jsonData, index = null) {
   if (!jsonData || jsonData.length === 0) return false;
   const data = index !== null && index >= 0 && index < jsonData.length ? jsonData[index] : null;
   if (node.name.includes('.')) {
@@ -50,7 +47,12 @@ function processNode(node, jsonData, index = null) {
       if (property === 'name' && data.name) {
         replaceText(node, data.name);
       } else if (property === 'logo' && data.logoPng) {
-        replaceImage(node, data.logoPng);
+        try {
+          await replaceImage(node, data.logoPng);
+        } catch (e) {
+          notify(`Fehler beim Bild für ${node.name}: ${e.message}. Ersetze mit Text.`);
+          replaceText(node, data.name);
+        }
       }
     }
     return true;
@@ -59,14 +61,22 @@ function processNode(node, jsonData, index = null) {
     const indexFromName = jsonData.findIndex(item => item.name === node.name);
     if (indexFromName !== -1) {
       const groupData = jsonData[indexFromName];
-      node.children.forEach(child => {
-        const [_, property] = child.name.split('.');
-        if (property === 'name' && groupData.name) {
-          replaceText(child, groupData.name);
-        } else if (property === 'logo' && groupData.logoPng) {
-          replaceImage(child, groupData.logoPng);
+      for (const child of node.children) {
+        const parts = child.name.split('.');
+        if (parts.length > 1) {
+          const property = parts[1];
+          if (property === 'name' && groupData.name) {
+            replaceText(child, groupData.name);
+          } else if (property === 'logo' && groupData.logoPng) {
+            try {
+              await replaceImage(child, groupData.logoPng);
+            } catch (e) {
+              notify(`Fehler beim Bild für ${child.name}: ${e.message}. Ersetze mit Text.`);
+              replaceText(child, groupData.name);
+            }
+          }
         }
-      });
+      }
       return true;
     }
   }
@@ -74,7 +84,12 @@ function processNode(node, jsonData, index = null) {
     if (node.type === 'TEXT' && data.name) {
       replaceText(node, data.name);
     } else if ((node.type === 'RECTANGLE' || node.type === 'FRAME' || node.type === 'GROUP') && data.logoPng) {
-      replaceImage(node, data.logoPng);
+      try {
+        await replaceImage(node, data.logoPng);
+      } catch (e) {
+        notify(`Fehler beim Bild für ${node.name}: ${e.message}. Ersetze mit Text.`);
+        replaceText(node, data.name);
+      }
     }
   }
   return false;
@@ -89,7 +104,7 @@ figma.on('selectionchange', () => {
   figma.ui.postMessage({ type: 'selection-changed', multiple: selection.length > 1 });
 });
 
-figma.ui.onmessage = (msg) => {
+figma.ui.onmessage = async (msg) => {
   const selection = figma.currentPage.selection;
   if (msg.type === 'json-loaded') {
     jsonData = msg.data || [];
@@ -108,7 +123,7 @@ figma.ui.onmessage = (msg) => {
       notify('Ungültiger Index!');
       return;
     }
-    processNode(selection[0], jsonData, msg.index);
+    await processNode(selection[0], jsonData, msg.index);
     notify('Element wurde ersetzt!');
   }
   if (msg.type === 'replace-random') {
@@ -120,12 +135,12 @@ figma.ui.onmessage = (msg) => {
       notify('Daten wurden noch nicht geladen!');
       return;
     }
-    selection.forEach(node => {
-      if (!processNode(node, jsonData)) {
+    for (const node of selection) {
+      if (!(await processNode(node, jsonData))) {
         const randomIndex = Math.floor(Math.random() * jsonData.length);
-        processNode(node, jsonData, randomIndex);
+        await processNode(node, jsonData, randomIndex);
       }
-    });
+    }
     notify('Elemente wurden ersetzt!');
   }
 };
