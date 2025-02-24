@@ -1,14 +1,17 @@
 [
     {
+      "id": "1",
       "name": "logoipsum",
-      "logo": "https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/images/logos/brand_a.svg"
+      "logo": "https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/images/logos/brand_a.png"
     },
     {
+      "id": "2",
       "name": "lorem",
-      "logo": "https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/images/logos/brand_b.svg"
+      "logo": "https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/images/logos/brand_b.png"
     },
     {
+      "id": "3",
       "name": "ipsum",
-      "logo": "https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/images/logos/brand_c.svg"
+      "logo": "https://raw.githubusercontent.com/Weltraumakustik/figma-placeholder-data/refs/heads/main/data/images/logos/brand_c.png"
     }
   ]
